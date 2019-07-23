@@ -41,6 +41,10 @@ bool good_os()
 	{
 		b_os = true;
 	}
+	else if (strncmp(sysinfo.sysname, "CYGWIN_NT", strlen("CYGWIN_NT")) == 0)
+	{
+		b_os = true;
+	}
 #endif
 
 	return b_os;
@@ -501,3 +505,4 @@ int main(int argc, const char* argv[])
 
 	return retval;
 }
+
