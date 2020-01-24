@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 
-#ifndef _WIN32
+#if !defined _WIN32 && !defined _WIN64
 #include <sys/utsname.h>
 #endif
 
@@ -21,14 +21,11 @@
 
 bool good_os()
 {
-	bool b_os = false;
+#if defined _WIN32 || defined _WIN64
+    return false;
+#endif
 
-#ifdef _WIN32
-	if (getenv("windir"))
-	{
-		b_os = true;
-	}
-#else
+    bool b_os = false;
 	struct utsname sysinfo;
 
 	uname(&sysinfo);
@@ -45,7 +42,6 @@ bool good_os()
 	{
 		b_os = true;
 	}
-#endif
 
 	return b_os;
 }
@@ -505,4 +501,3 @@ int main(int argc, const char* argv[])
 
 	return retval;
 }
-
