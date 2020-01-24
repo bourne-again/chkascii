@@ -22,10 +22,10 @@
 bool good_os()
 {
 #if defined _WIN32 || defined _WIN64
-    return false;
+	return false;
 #endif
 
-    bool b_os = false;
+	bool b_os = false;
 	struct utsname sysinfo;
 
 	uname(&sysinfo);
