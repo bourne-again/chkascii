@@ -6,5 +6,5 @@ mandir        = $(PREFIX)/share/man
 
 install:
 		$(INSTALL) -d $(DESTDIR)$(bindir)
-		$(INSTALL) -d $(DESTDIR)$(mandir)/man{1}
+		$(INSTALL) -d $(DESTDIR)$(mandir)/man1
 		$(INSTALL) -m644 *.1 $(DESTDIR)$(mandir)/man1
