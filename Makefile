@@ -1,10 +1,10 @@
 INSTALL       = /usr/bin/env install
-PREFIX        = /usr/local
+PREFIX        = /usr
 bindir        = $(PREFIX)/bin
-DESTDIR       =
 mandir        = $(PREFIX)/share/man
 
 install:
-		$(INSTALL) -d $(DESTDIR)$(bindir)
-		$(INSTALL) -d $(DESTDIR)$(mandir)/man1
-		$(INSTALL) -m644 *.1 $(DESTDIR)$(mandir)/man1
+		$(INSTALL) -d $(bindir)
+		$(INSTALL) -m755 chkascii $(DESTDIR)$(bindir)
+		$(INSTALL) -d $(mandir)/man1
+		$(INSTALL) -m644 chkascii.1 $(mandir)/man1
