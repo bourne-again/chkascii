@@ -4,6 +4,7 @@ bindir        = $(PREFIX)/bin
 mandir        = $(PREFIX)/share/man
 
 install:
+		c++ -o chkascii chkascii.cc
 		$(INSTALL) -d $(bindir)
 		$(INSTALL) -m755 chkascii $(DESTDIR)$(bindir)
 		$(INSTALL) -d $(mandir)/man1
