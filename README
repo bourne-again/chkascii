@@ -1,0 +1,20 @@
+Time and again, you come across plain-text files with invalid ASCII
+characters, possibly as a result of pasting from non-ASCII documents -
+for instance PDF files.
+
+As a result, your shell script may rot, your Latex compilation might
+break, your C code might fly off the handle, ...
+
+When you need to be sure your text file is 100% good, pure ASCII, you
+need chkascii - a small C utility that checks for invalid characters.
+
+chkascii treats valid ASCII values in a text file as the austere set :
+
+{ 32-126 / 9 (horizontal tab) / 10 (line feed a.k.a. Unix newline) }
+
+Anything else is considered junk, although the user can pass in
+additional ASCII values to treat as good.
+
+chkascii additionally checks whether the file is EOL-terminated.
+If the file  is  neither  empty  nor terminated with ASCII 10, chkascii
+treats the condition as an error too (albeit of a different kind).
