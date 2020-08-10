@@ -1,30 +1,29 @@
-#include <stdbool.h>
-#include <ctype.h>
-#include <stdlib.h>
+#include "assertz.h"
+#include "printz.h"
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
 #include <stdarg.h>
+
+#if !defined _WIN32 && !defined _WIN64
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/file.h>
+#include <sys/utsname.h>
+#else
+#error _WIN32/_WIN64 not supported
+#endif
 
 #include <new>
 #include <string>
 
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-
-#if !defined _WIN32 && !defined _WIN64
-#include <sys/utsname.h>
-#endif
-
-#include "assertz.h"
-#include "printz.h"
+const int FILEPATHLEN = 1024;
 
 bool good_os()
 {
-#if defined _WIN32 || defined _WIN64
-	return false;
-#endif
-
 	bool b_os = false;
 	struct utsname sysinfo;
 
@@ -38,7 +37,7 @@ bool good_os()
 	{
 		b_os = true;
 	}
-	else if (strncmp(sysinfo.sysname, "CYGWIN_NT", strlen("CYGWIN_NT")) == 0)
+	else if (strncmp(sysinfo.sysname, "CYGWIN", strlen("CYGWIN")) == 0)
 	{
 		b_os = true;
 	}
@@ -56,6 +55,7 @@ void errexit(const char* errmsg, int errcode = -1)
 	exit(errcode);
 }
 
+// Ensure a variable number of booleans are all set to false
 void voff(const char* errmsg, const bool* pb, ...)
 {
 	assert_ptr(pb, __LINE__);
@@ -157,7 +157,7 @@ int parse(const char* p, std::string** args)
 	for (int i = 0; i < commas+1; i++)
 	{
 		assert_ptr(p3, __LINE__);
-		char buffer[64];
+		char buffer[256];
 
 		strcpy(buffer, p3);
 		buffer[sizeof(buffer)-1] = 0;
@@ -182,9 +182,9 @@ asciiaccept* newnode(asciiaccept** pp, const std::string* psz)
 	assert_ptr(pp, __LINE__);
 	assert_ptr(psz, __LINE__);
 
-	char buffer[256];
+	char buffer[16];
 
-	strcpy(buffer, (*psz).c_str());
+	strcpy(buffer, psz->c_str());
 	buffer[sizeof(buffer)-1] = 0;
 	assert_nz(*buffer, __LINE__, (long) &usage);
 	assert_num(buffer, __LINE__, (long) &usage);
@@ -223,15 +223,18 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 			}
 		}
 
-		while (pacc)
+		if ((b_good == false) && (pacc > 0))
 		{
-			if (ch == pacc->ascii)
+			while (pacc)
 			{
-				b_good = true;
-				break;
-			}
+				if (ch == pacc->ascii)
+				{
+					b_good = true;
+					break;
+				}
 
-			pacc = pacc->next;
+				pacc = pacc->next;
+			}
 		}
 	}
 
@@ -243,7 +246,6 @@ char* filepath = 0;
 void release()
 {
 	delete[] filepath;
-	filepath = 0;
 }
 
 int main(int argc, const char* argv[])
@@ -260,9 +262,6 @@ int main(int argc, const char* argv[])
 	{
 		usage();
 	}
-
-	const int FILEPATHLEN = 1024;
-	const int BLOCKSIZE = 512;
 
 	int maxjunk = 1;
 	struct stat filestat;
@@ -330,11 +329,17 @@ int main(int argc, const char* argv[])
 		}
 		else if (stat(argv[argc], &filestat) == 0)
 		{
+			if (! (strlen(argv[argc]) < FILEPATHLEN))
+			{
+				char buff[256];
+				sprintf(buff, "Max acceptable path length is %d", FILEPATHLEN);
+				errexit(buff);
+			}
+
 			assert_nz(S_ISREG(filestat.st_mode), __LINE__, (long) &usage);
 
 			//Before allocating, delete any existing memory taken up by argv[+]
 			delete[] filepath;
-			filepath = 0;
 
 			filepath = new(std::nothrow) char[FILEPATHLEN];
 			assert_ptr(filepath, __LINE__);
@@ -363,8 +368,6 @@ int main(int argc, const char* argv[])
 
 	int i = 0;
 	int lf = 0;
-	int loops = 0;
-	int to_read = 0;
 	int post_lf = 0;
 	int baddies = 0;
 
@@ -373,69 +376,45 @@ int main(int argc, const char* argv[])
 	int firstbad_column = 0;
 	int firstbad_row = 0;
 
-	unsigned char block[BLOCKSIZE];
+	unsigned char uc;
 	unsigned char retval = 0;
 
 	while (i < len)
 	{
-		int j = 0;
+		int j = pread(fd, (unsigned char*) &uc, 1, i);
+		assert_eq(j, 1, __LINE__);
 
-		loops++;
-		to_read = (len-i < BLOCKSIZE) ? len-i : BLOCKSIZE;
-		memset(block, 0, sizeof(block));
+		int lf_in = lf;
+		bool is_good = chkchar(uc, &lf, pHead);
+		post_lf = (lf_in == lf) ? post_lf+1 : 0;
 
-		while (j < to_read)
+		if (! is_good)
 		{
-			j += read(fd, (unsigned char*) block+j, to_read-j);
-		}
+			retval = retval | (1<<0);
 
-		int k = 0;
-		bool b_outbreak = false;
-
-		for (k = 0; k < to_read; k++)
-		{
-			unsigned char ch = block[k];
-
-			int lf_in = lf;
-			bool is_good = chkchar(ch, &lf, pHead);
-			post_lf = (lf_in == lf) ? post_lf+1 : 0;
-
-			if (! is_good)
+			if (baddies == 0)
 			{
-				retval = retval | (1<<0);
-				int X = (loops-1)*(sizeof(block)) + k + 1;
+				firstbad_ascii = uc;
+				firstbad_offset = i;
+				firstbad_row = lf+1;
+				firstbad_column = post_lf;
+			}
 
-				if (baddies == 0)
-				{
-					firstbad_ascii = ch;
-					firstbad_offset = X;
-					firstbad_row = lf+1;
-					firstbad_column = post_lf;
-				}
+			baddies++;
 
-				baddies++;
+			if ((b_summary == false) && (b_quiet == false))
+			{
+				pro("Bad ASCII (decimal %d) at offset %d", uc, i);
+				pro("<Coordinates : line %d ; column %d>", lf+1, post_lf);
+			}
 
-				if ((b_summary == false) && (b_quiet == false))
-				{
-					pro("Bad ASCII (decimal %d) at offset %d", ch, X);
-					pro("<Coordinates : line %d ; column %d>", lf+1, post_lf);
-				}
-
-				if (baddies >= maxjunk)
-				{
-					b_outbreak = true;
-					k++;
-					break;
-				}
+			if (baddies >= maxjunk)
+			{
+				break;
 			}
 		}
 
-		i += k;
-
-		if (b_outbreak)
-		{
-			break;
-		}
+		i++;
 	}
 
 	close(fd);
