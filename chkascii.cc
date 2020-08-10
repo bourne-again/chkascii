@@ -223,7 +223,7 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 			}
 		}
 
-		if ((b_good == false) && (pacc > 0))
+		if ((b_good == false) && (pacc))
 		{
 			while (pacc)
 			{
