@@ -1,12 +1,15 @@
 #include "assertz.h"
 #include "printz.h"
 
+// Following are the headers already included via assertz.h & printz.h :
+// <<<:
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+// :>>>
 
 #if !defined _WIN32 && !defined _WIN64
 #include <unistd.h>
@@ -14,32 +17,32 @@
 #include <sys/file.h>
 #include <sys/utsname.h>
 #else
-#error _WIN32/_WIN64 not supported
+#error _WIN32/_WIN64 Not Supported
 #endif
 
 #include <new>
 #include <string>
 
-const int FILEPATHLEN = 1024;
+#define MAXPATHLEN 1024
+#define LINEFEED 10
 
 bool good_os()
 {
 	bool b_os = false;
 	struct utsname sysinfo;
+	const char* ppos[] = { "BSD", "Linux", "CYGWIN", 0};
 
 	uname(&sysinfo);
 
-	if (strcmp(sysinfo.sysname, "FreeBSD") == 0)
+	while (*ppos)
 	{
-		b_os = true;
-	}
-	else if (strcmp(sysinfo.sysname, "Linux") == 0)
-	{
-		b_os = true;
-	}
-	else if (strncmp(sysinfo.sysname, "CYGWIN", strlen("CYGWIN")) == 0)
-	{
-		b_os = true;
+		if (strstr(sysinfo.sysname, *ppos))
+		{
+			b_os = true;
+			break;
+		}
+
+		(*ppos)++;
 	}
 
 	return b_os;
@@ -93,6 +96,7 @@ void usage()
 	pre("All optional arguments are max-once.");
 	pre("Mutually exclusive options: --maxjunk|--summary|--quiet");
 	pre("Default maxjunk value is 1; use 0 for unlimited.");
+
 	exit(-1);
 }
 
@@ -209,7 +213,7 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 	}
 	else
 	{
-		if ((plf) && (ch == 10))
+		if ((plf) && (ch == LINEFEED))
 		{
 			 (*plf)++;
 		}
@@ -223,18 +227,10 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 			}
 		}
 
-		if ((b_good == false) && (pacc))
+		while ((pacc) && (b_good == false))
 		{
-			while (pacc)
-			{
-				if (ch == pacc->ascii)
-				{
-					b_good = true;
-					break;
-				}
-
-				pacc = pacc->next;
-			}
+			b_good = (ch == pacc->ascii);
+			pacc = pacc->next;
 		}
 	}
 
@@ -242,32 +238,35 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 }
 
 char* filepath = 0;
+asciiaccept* pHead = 0;
+asciiaccept* pNode = 0;
 
 void release()
 {
+	pNode = pHead;
+
+	while (pNode)
+	{
+		asciiaccept* pNext = pNode->next;
+		delete pNode;
+		pNode = pNext;
+	}
+
 	delete[] filepath;
 }
 
 int main(int argc, const char* argv[])
 {
+	assert_gt(argc, 1, __LINE__, (long) &usage);
 	atexit(&release);
 
 	if (! good_os())
 	{
-		pre("Unsupported OS !!");
-		exit(-1);
-	}
-
-	if (argc < 2)
-	{
-		usage();
+		errexit("Unsupported OS !!");
 	}
 
 	int maxjunk = 1;
 	struct stat filestat;
-
-	asciiaccept* pHead = 0;
-	asciiaccept* pNode = 0;
 
 	const char* ACCEPT = "--accept=";
 	const int len_ACCEPT = strlen(ACCEPT);
@@ -300,6 +299,7 @@ int main(int argc, const char* argv[])
 
 			int accs = parse(argv[argc], &psz);
 			assert_nz(accs, __LINE__, (long) &usage);
+
 			pHead = newnode(&pNode, &psz[z++]);
 
 			while (z < accs)
@@ -329,10 +329,10 @@ int main(int argc, const char* argv[])
 		}
 		else if (stat(argv[argc], &filestat) == 0)
 		{
-			if (! (strlen(argv[argc]) < FILEPATHLEN))
+			if (! (strlen(argv[argc]) < MAXPATHLEN))
 			{
-				char buff[256];
-				sprintf(buff, "Max acceptable path length is %d", FILEPATHLEN);
+				char buff[64];
+				sprintf(buff, "Max permitted path length is %d", MAXPATHLEN-1);
 				errexit(buff);
 			}
 
@@ -341,11 +341,11 @@ int main(int argc, const char* argv[])
 			//Before allocating, delete any existing memory taken up by argv[+]
 			delete[] filepath;
 
-			filepath = new(std::nothrow) char[FILEPATHLEN];
+			filepath = new(std::nothrow) char[MAXPATHLEN];
 			assert_ptr(filepath, __LINE__);
 
 			strcpy(filepath, argv[argc]);
-			filepath[FILEPATHLEN-1] = 0;
+			filepath[MAXPATHLEN-1] = 0;
 		}
 		else
 		{
@@ -363,9 +363,6 @@ int main(int argc, const char* argv[])
 		maxjunk = len;
 	}
 
-	int fd = open(filepath, O_RDONLY);
-	assert_gt(fd, 2, __LINE__);
-
 	int i = 0;
 	int lf = 0;
 	int post_lf = 0;
@@ -379,10 +376,28 @@ int main(int argc, const char* argv[])
 	unsigned char uc;
 	unsigned char retval = 0;
 
+	int fd = 0;
+
+	if (len)
+	{
+		unsigned char last = 0;
+
+		fd = open(filepath, O_RDONLY);
+		assert_gt(fd, 2, __LINE__);
+
+		int j = pread(fd, (unsigned char*) &last, 1, len-1);
+		assert_eq(j, 1, __LINE__);
+
+		if (last != LINEFEED)
+		{
+			retval = retval | (1<<7);
+		}
+	}
+
 	while (i < len)
 	{
-		int j = pread(fd, (unsigned char*) &uc, 1, i);
-		assert_eq(j, 1, __LINE__);
+		int k = read(fd, (unsigned char*) &uc, 1);
+		assert_eq(k, 1, __LINE__);
 
 		int lf_in = lf;
 		bool is_good = chkchar(uc, &lf, pHead);
@@ -417,42 +432,14 @@ int main(int argc, const char* argv[])
 		i++;
 	}
 
-	close(fd);
-	pNode = pHead;
-
-	while (pNode)
+	if (fd)
 	{
-		asciiaccept* pNext = pNode->next;
-		delete pNode;
-		pNode = pNext;
+		close(fd);
 	}
 
-	pHead = 0;
-
-	if (len)
+	if ((retval && (1<<7)) && (b_quiet == false))
 	{
-		unsigned char last = 0;
-
-		int lfd = open(filepath, O_RDONLY);
-		assert_gt(lfd, 2, __LINE__);
-
-		int lresult = lseek(lfd, -1, SEEK_END);
-		assert_ne(lresult, -1, __LINE__);
-
-		int lread = read(lfd, &last, 1);
-		assert_eq(lread, 1, __LINE__);
-
-		close(lfd);
-
-		if (last != 10)
-		{
-			retval = retval | (1<<7);
-
-			if (b_quiet == false)
-			{
-				pro("<file> is NOEOL");
-			}
-		}
+		pro("<file> is NOEOL");
 	}
 
 	if (b_summary)
@@ -474,9 +461,6 @@ int main(int argc, const char* argv[])
 			);
 		}
 	}
-
-	delete[] filepath;
-	filepath = 0;
 
 	return retval;
 }
