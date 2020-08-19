@@ -437,7 +437,7 @@ int main(int argc, const char* argv[])
 		close(fd);
 	}
 
-	if ((retval && (1<<7)) && (b_quiet == false))
+	if ((retval & (1<<7)) && (b_quiet == false))
 	{
 		pro("<file> is NOEOL");
 	}
