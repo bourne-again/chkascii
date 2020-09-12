@@ -30,7 +30,7 @@ bool good_os()
 {
 	bool b_os = false;
 	struct utsname sysinfo;
-	const char* ppos[] = { "BSD", "Linux", "CYGWIN", 0};
+	const char* ppos[] = { "BSD", "Linux", "CYGWIN", 0 };
 
 	uname(&sysinfo);
 
@@ -61,7 +61,7 @@ void errexit(const char* errmsg, int errcode = -1)
 // Ensure a variable number of booleans are all set to false
 void voff(const char* errmsg, const bool* pb, ...)
 {
-	assert_ptr(pb, __LINE__);
+	assert_ptr(pb);
 
 	if (*pb)
 	{
@@ -109,19 +109,19 @@ struct asciiaccept
 // Extract a single integer arg after '=' in a parameter string "LEAD=arg"
 int extract(const char* p)
 {
-	assert_ptr(p, __LINE__);
-	assert_nz(*p, __LINE__);
+	assert_ptr(p);
+	assert_nz(*p, __LINE__, __FILE__, &usage);
 
 	char buffer[16];
 	const char* p2 = strchr(p, '=');
 
-	assert_ptr(p2, __LINE__);
+	assert_ptr(p2, __LINE__, __FILE__, &usage);
 	p2++;
-	assert_nz(*p2, __LINE__, (long) &usage);
+	assert_nz(*p2, __LINE__, __FILE__, &usage);
 
 	strcpy(buffer, p2);
 	buffer[sizeof(buffer)-1] = 0;
-	assert_num(buffer, __LINE__, (long) &usage);
+	assert_num(buffer, __LINE__, __FILE__, &usage);
 
 	return atoi(buffer);
 }
@@ -129,13 +129,13 @@ int extract(const char* p)
 // Parse a string of the form LEAD=sz1[,sz2] to extract substrings sz<*>
 int parse(const char* p, std::string** args)
 {
-	assert_ptr(args, __LINE__);
-	assert_ptr(p, __LINE__);
-	assert_nz(*p, __LINE__);
+	assert_ptr(args);
+	assert_ptr(p);
+	assert_nz(*p);
 
 	const char* p2 = strchr(p, '=');
 
-	assert_ptr(p2, __LINE__);
+	assert_ptr(p2, __LINE__, __FILE__, &usage);
 	p2++;
 
 	if (! *p2)
@@ -156,11 +156,11 @@ int parse(const char* p, std::string** args)
 	p3 = p2;
 
 	*args = new(std::nothrow) std::string[commas+1];
-	assert_ptr(*args, __LINE__);
+	assert_ptr(*args);
 
 	for (int i = 0; i < commas+1; i++)
 	{
-		assert_ptr(p3, __LINE__);
+		assert_ptr(p3);
 		char buffer[256];
 
 		strcpy(buffer, p3);
@@ -183,18 +183,18 @@ int parse(const char* p, std::string** args)
 
 asciiaccept* newnode(asciiaccept** pp, const std::string* psz)
 {
-	assert_ptr(pp, __LINE__);
-	assert_ptr(psz, __LINE__);
+	assert_ptr(pp);
+	assert_ptr(psz);
 
 	char buffer[16];
 
 	strcpy(buffer, psz->c_str());
 	buffer[sizeof(buffer)-1] = 0;
-	assert_nz(*buffer, __LINE__, (long) &usage);
-	assert_num(buffer, __LINE__, (long) &usage);
+	assert_nz(*buffer, __LINE__, __FILE__, &usage);
+	assert_num(buffer, __LINE__, __FILE__, &usage);
 
 	*pp = new(std::nothrow) asciiaccept;
-	assert_ptr(*pp, __LINE__);
+	assert_ptr(*pp);
 
 	(*pp)->next = 0;
 	(*pp)->ascii = atoi(buffer);
@@ -204,6 +204,8 @@ asciiaccept* newnode(asciiaccept** pp, const std::string* psz)
 
 bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 {
+	assert_ptr(plf);
+
 	bool b_good = false;
 	const int specials[] = { 9, 10 };
 
@@ -213,7 +215,7 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 	}
 	else
 	{
-		if ((plf) && (ch == LINEFEED))
+		if (ch == LINEFEED)
 		{
 			 (*plf)++;
 		}
@@ -257,7 +259,7 @@ void release()
 
 int main(int argc, const char* argv[])
 {
-	assert_gt(argc, 1, __LINE__, (long) &usage);
+	assert_gt(argc, 1, __LINE__, __FILE__, &usage);
 	atexit(&release);
 
 	if (! good_os())
@@ -266,7 +268,7 @@ int main(int argc, const char* argv[])
 	}
 
 	int maxjunk = 1;
-	struct stat filestat;
+	struct stat fist;
 
 	const char* ACCEPT = "--accept=";
 	const int len_ACCEPT = strlen(ACCEPT);
@@ -294,11 +296,11 @@ int main(int argc, const char* argv[])
 			voff("Multiple --accept parameters not permitted", &b_accept, 0);
 			b_accept = true;
 
-			std::string* psz;
+			std::string* psz = 0;
 			int z = 0;
 
 			int accs = parse(argv[argc], &psz);
-			assert_nz(accs, __LINE__, (long) &usage);
+			assert_ptr(psz, __LINE__, __FILE__, &usage);
 
 			pHead = newnode(&pNode, &psz[z++]);
 
@@ -327,7 +329,7 @@ int main(int argc, const char* argv[])
 			voff(pexclusive, &b_maxjunk, &b_quiet, &b_summary, 0);
 			b_quiet = true; // implicitly, maxjunk is 1 (the default value)
 		}
-		else if (stat(argv[argc], &filestat) == 0)
+		else if (stat(argv[argc], &fist) == 0)
 		{
 			if (! (strlen(argv[argc]) < MAXPATHLEN))
 			{
@@ -336,13 +338,13 @@ int main(int argc, const char* argv[])
 				errexit(buff);
 			}
 
-			assert_nz(S_ISREG(filestat.st_mode), __LINE__, (long) &usage);
+			assert_nz(S_ISREG(fist.st_mode), __LINE__, __FILE__, &usage);
 
 			//Before allocating, delete any existing memory taken up by argv[+]
 			delete[] filepath;
 
 			filepath = new(std::nothrow) char[MAXPATHLEN];
-			assert_ptr(filepath, __LINE__);
+			assert_ptr(filepath);
 
 			strcpy(filepath, argv[argc]);
 			filepath[MAXPATHLEN-1] = 0;
@@ -355,8 +357,8 @@ int main(int argc, const char* argv[])
 		argc--;
 	}
 
-	assert_ptr(filepath, __LINE__, (long) &usage);
-	const int len = filestat.st_size;
+	assert_ptr(filepath, __LINE__, __FILE__, &usage);
+	const int len = fist.st_size;
 
 	if (maxjunk == 0)
 	{
@@ -383,10 +385,10 @@ int main(int argc, const char* argv[])
 		unsigned char last = 0;
 
 		fd = open(filepath, O_RDONLY);
-		assert_gt(fd, 2, __LINE__);
+		assert_gt(fd, 2);
 
 		int j = pread(fd, (unsigned char*) &last, 1, len-1);
-		assert_eq(j, 1, __LINE__);
+		assert_eq(j, 1);
 
 		if (last != LINEFEED)
 		{
@@ -397,7 +399,7 @@ int main(int argc, const char* argv[])
 	while (i < len)
 	{
 		int k = read(fd, (unsigned char*) &uc, 1);
-		assert_eq(k, 1, __LINE__);
+		assert_eq(k, 1);
 
 		int lf_in = lf;
 		bool is_good = chkchar(uc, &lf, pHead);
@@ -451,13 +453,15 @@ int main(int argc, const char* argv[])
 			pro
 			(
 				"First bad ASCII (decimal %d) at offset %d",
-				firstbad_ascii, firstbad_offset
+				firstbad_ascii,
+				firstbad_offset
 			);
 
 			pro
 			(
 				"Coordinates: line %d; column %d",
-				firstbad_row, firstbad_column
+				firstbad_row,
+				firstbad_column
 			);
 		}
 	}
