@@ -1,4 +1,4 @@
-.TH man 1 "12 September, 2020" "2.3" "chkascii man page"
+.TH man 1 "15 November, 2020" "2.4" "chkascii man page"
 
 .SH NAME
 chkascii \- a small C program that checks whether a file is
@@ -10,11 +10,18 @@ left-most bit is reserved. This allows for the character value
 range 0-127, many of which are control characters (for instance 0) not
 found in actual, regular text files.
 
+Characters outside of the US-ASCII character set need to be specially
+encoded when they get into a plain text file. So if a plain text file
+has the German character 'ö' (o-Umlaut), the character would need to be
+encoded at the time of writing, and then decoded at the time of reading.
 Text-encoding schemes are of two varieties: some such as ISO-8859-1
 extend the traditional ASCII set by using 8-bit representation; others
-such as the Unicode family use 2 or 4 bytes per character.
+such as the Unicode family use 2 or 4 bytes per character. As an
+example, 'ö' (o-Umlaut) uses 1 byte in ISO-8859-1 (decimal 246) but
+2 bytes in UTF-8 (the first byte holding decimal 195; the second byte
+holding decimal 182).
 
-chkascii treats valid ASCII values in a text file as the austere set :
+chkascii treats valid ASCII values in a text file as the austere set:
 
 { 32-126 / 9 (horizontal tab) / 10 (line feed a.k.a. Unix newline) }
 
@@ -27,13 +34,13 @@ treats the condition as an error too.
 
 .SH USAGE
 The command below asks <file> to be checked as per the built-in scheme,
-stopping on the first bad ASCII character :
+stopping on the first bad ASCII character:
 
 chkascii <file>
 
 The command above uses a default maximum-junk (maxjunk) value of 1.
 If you pass in a maxjunk value of 0, the application treats the
-upper limit of reportable junk as infinite :
+upper limit of reportable junk as infinite:
 
 chkascii --maxjunk=0 <file>
 
@@ -48,7 +55,7 @@ chkascii --maxjunk=0 <file>
 These options are mutually exclusive: --maxjunk | --summary | --quiet
 
 --accept forces an ASCII value to be accepted as good. The command below
-asks ASCII values 13 (CR) and 11 (VT) to be treated as good :
+asks ASCII values 13 (CR) and 11 (VT) to be treated as good:
 
 chkascii --accept=13,11 <file>
 
@@ -75,7 +82,7 @@ table of ASCII values and symbols.
 vim(1) has the Normal command ga which displays the ASCII value of the
 character under the cursor.
 
-od(1) can be used to print the (decimal) ASCII values in a file :
+od(1) can be used to print the (decimal) ASCII values in a file:
 
 od -t u1 <file>
 

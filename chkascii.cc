@@ -24,7 +24,12 @@
 #include <string>
 
 #define MAXPATHLEN 1024
+
+#define HTAB 9
 #define LINEFEED 10
+
+#define ASCII_MIN 32
+#define ASCII_MAX 126
 
 bool good_os()
 {
@@ -207,9 +212,9 @@ bool chkchar(int ch, int* plf, const asciiaccept* pacc)
 	assert_ptr(plf);
 
 	bool b_good = false;
-	const int specials[] = { 9, 10 };
+	const int specials[] = { HTAB, LINEFEED };
 
-	if ((ch > 31) && (ch < 127))
+	if ((ch >= ASCII_MIN) && (ch <= ASCII_MAX))
 	{
 		b_good = true;
 	}
@@ -385,7 +390,7 @@ int main(int argc, const char* argv[])
 		unsigned char last = 0;
 
 		fd = open(filepath, O_RDONLY);
-		assert_gt(fd, 2);
+		assert_gt(fd, 2);	// 0 -> stdin; 1 -> stdout; 2 -> stderr;
 
 		int j = pread(fd, (unsigned char*) &last, 1, len-1);
 		assert_eq(j, 1);

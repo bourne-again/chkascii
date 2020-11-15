@@ -8,7 +8,7 @@ break, your C code might fly off the handle, ...
 When you need to be sure your text file is 100% good, pure ASCII, you
 need chkascii - a small C utility that checks for invalid characters.
 
-chkascii treats valid ASCII values in a text file as the austere set :
+chkascii treats valid ASCII values in a text file as the austere set:
 
 { 32-126 / 9 (horizontal tab) / 10 (line feed a.k.a. Unix newline) }
 
